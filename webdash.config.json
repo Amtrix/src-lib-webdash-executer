@@ -1,0 +1,9 @@
+{
+    "commands": [
+        {
+            "name": "build",
+            "action": "make -C build",
+            "wdir": "$.thisDir()"
+        }
+    ]
+}

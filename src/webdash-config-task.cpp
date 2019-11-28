@@ -34,7 +34,6 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
         try {
             json actions = task_config["actions"];
 
-            myworld::logging::Log(myworld::logging::Type::WARN, actions.dump());
             for (auto action : actions) 
                 this->_actions.push_back(action.get<std::string>());
             has_action = true;
@@ -46,6 +45,16 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
             myworld::logging::Log(myworld::logging::Type::ERR, "T| " + taskid + ": no actions.");
         }
     }
+
+    try {
+        json dependencies = task_config["dependencies"];
+
+        for (auto dependency : dependencies) 
+            this->_dependencies.push_back(dependency.get<std::string>());
+    } catch (...) {
+        myworld::logging::Log(myworld::logging::Type::WARN, "T| " + taskid + ": no dependencies.");
+    }
+
     
     try {
         const string frequency = task_config["frequency"].get<std::string>();
@@ -59,6 +68,13 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
         this->_wdir = wdir;
     } catch (...) {
         myworld::logging::Log(myworld::logging::Type::WARN, "T| " + taskid + ": no working directory (wdir) given.");
+    }
+
+    try {
+        const bool val = task_config["notify-dashboard"].get<bool>();
+        this->_notify_dashboard = val;
+    } catch (...) {
+        myworld::logging::Log(myworld::logging::Type::WARN, "T| " + taskid + ": dashboard notification not specified.");
     }
 
     size_t pos;
@@ -219,11 +235,20 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string
 
 webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config) {
     webdash::RunReturn ret;
+
+    if (_notify_dashboard) {
+        myworld::dashboard::notify(_taskid);
+    }
+
+    for (int i = 0; i < (int)_dependencies.size(); ++i) {
+        config.CmdResolveAndRun(_dependencies[i], config);
+    }
+
     for (int i = 0; i < (int)_actions.size(); ++i) {
         string action = _actions[i];
 
-        if (action[0] == '#') {
-            auto ret_sub = config.CmdResolveAndRun(action.substr(1), config);
+        if (action[0] == ':') {
+            auto ret_sub = config.CmdResolveAndRun(action, config);
             ret.output += ret_sub.output;
             ret.return_code |= ret_sub.return_code;
         } else {

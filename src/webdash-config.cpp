@@ -59,16 +59,32 @@ void WebDashConfig::Serialize(WriterType writer) {
 std::vector<webdash::RunReturn> WebDashConfig::Run(const string cmdName, webdash::RunConfig runconfig) {
     std::vector<webdash::RunReturn> ret;
 
+    // Enables tasks to resolve task-wide tasks.
+    // Meaning, one can specify "#<task_name>" as an action.
     runconfig.CmdResolveAndRun = [&](string cmdid, webdash::RunConfig config) {
         webdash::RunReturn ret;
 
-        for (WebDashConfigTask& task : tasks)
-            if (task.GetName() == cmdid)
-                return task.Run(config);
-        
-        Log(Type::ERR, "No " + cmdid + " within " + GetPath());
+        if (cmdid[0] == ':') {
+            for (WebDashConfigTask& task : tasks)
+                if (task.GetName() == cmdid)
+                    return task.Run(config);
+            
+            Log(Type::ERR, "No " + cmdid + " within " + GetPath());
 
-        return ret;
+            return ret;
+        } else {
+            std::string configpath = cmdid.substr(0, cmdid.find(":")); // token is "scott
+            std::string real_cmd_name = cmdid.substr(configpath.length() + 1);
+
+            cout << "Resolving dependency: " << myworld::utility::GetRepositoryRoot() + cmdid << endl;
+            WebDashConfig other(myworld::utility::GetRepositoryRoot() + configpath);
+
+            webdash::RunConfig other_config;
+            other_config.redirect_output_to_str = config.redirect_output_to_str;
+
+            Log(Type::INFO, "Cross-config: " + GetPath() + " => " + configpath);
+            return other.Run(real_cmd_name, other_config)[0];
+        }
     };
 
     for (WebDashConfigTask& task : tasks) {

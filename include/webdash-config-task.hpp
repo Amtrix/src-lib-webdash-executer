@@ -30,6 +30,7 @@ class WebDashConfigTask {
         string _taskid;
         std::optional<string> _frequency;
         vector<string> _actions;
+        vector<string> _dependencies;
         string _name;
         std::optional<string> _wdir;
 
@@ -45,4 +46,6 @@ class WebDashConfigTask {
 
         // The task might be invalid due to some parameters wrongly set in the JSON, for example.
         bool _is_valid = true;
+
+        bool _notify_dashboard = false;
 };
