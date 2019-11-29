@@ -19,6 +19,8 @@ class WebDashConfigTask {
     public:
         WebDashConfigTask(string, string, json);
 
+        bool ShouldExecuteTimewise(webdash::RunConfig config);
+
         webdash::RunReturn Run(webdash::RunConfig config, std::string action);
 
         webdash::RunReturn Run(webdash::RunConfig config = {});
@@ -48,4 +50,6 @@ class WebDashConfigTask {
         bool _is_valid = true;
 
         bool _notify_dashboard = false;
+
+        string _when_to_execute;
 };

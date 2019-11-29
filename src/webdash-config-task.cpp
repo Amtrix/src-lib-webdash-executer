@@ -8,6 +8,7 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <sstream>
+#include <ctime>
 
 WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json task_config) {
     myworld::logging::Log(myworld::logging::Type::INFO, "Loading Task: " + taskid);
@@ -64,6 +65,13 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
     }
 
     try {
+        const string when = task_config["when"].get<std::string>();
+        this->_when_to_execute = when;
+    } catch (...) {
+        myworld::logging::Log(myworld::logging::Type::WARN, "T| " + taskid + ": no 'when'.");
+    }
+
+    try {
         const string wdir = task_config["wdir"].get<std::string>();
         this->_wdir = wdir;
     } catch (...) {
@@ -104,39 +112,52 @@ bool is_number(const std::string& s) {
     return end != s.c_str() && *end == '\0' && val != HUGE_VAL;
 }
 
+bool WebDashConfigTask::ShouldExecuteTimewise(webdash::RunConfig config) {
+    auto diff = std::chrono::high_resolution_clock::now() - _last_exec_time;
+    auto diff_h = duration_cast<hours>(diff).count();
+    auto diff_ms = duration_cast<milliseconds>(diff).count();
+
+    // We expect frequency because of <run_only_with_frequency> but didn't get any.
+    if (config.run_only_with_frequency && !_frequency.has_value())
+        return false;
+
+    bool enough_time_passed = true;
+    if (_frequency.has_value()) {
+        string freqv = _frequency.value();
+        if (diff_h < 24 && freqv == "daily") {
+            enough_time_passed = false;
+        } else if (diff_ms && is_number(freqv) && (diff_ms < stod(freqv))) {
+            enough_time_passed = false;
+        }
+    }
+
+    if (enough_time_passed == false) {
+        return false;
+    }
+
+    if (_when_to_execute == "new-day") {
+        std::time_t _time_last  = std::chrono::system_clock::to_time_t(_last_exec_time);
+        std::time_t _time_today = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+        auto tm_last  = gmtime(&_time_last);
+        auto tm_today = gmtime(&_time_today);
+
+        int day_last  = tm_last->tm_mday;
+        int day_today = tm_today->tm_mday;
+
+        if (day_last != day_today) {
+            return true;
+        }
+    }
+    
+
+    return true;
+}
+
 // wsl.exe -- source ~/.profile && webdash install
 webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string action) {
     webdash::RunReturn retval;
     _times_called++;
-
-    {
-        auto diff = std::chrono::high_resolution_clock::now() - _last_exec_time;
-        auto diff_h = duration_cast<hours>(diff).count();
-        auto diff_ms = duration_cast<milliseconds>(diff).count();
-
-        bool enough_time_passed = true;
-        if (_frequency.has_value()) {
-            string freqv = _frequency.value();
-            if (diff_h < 24 && freqv == "daily") {
-                enough_time_passed = false;
-            } else if (diff_ms && is_number(freqv) && (diff_ms < stod(freqv))) {
-                enough_time_passed = false;
-            }
-        }
-
-        if (enough_time_passed == false) {
-            if (_print_skip_has_happened == false) {
-                myworld::logging::Log(myworld::logging::Type::INFO, "Skipping: " + this->_taskid);
-                myworld::logging::Log(myworld::logging::Type::INFO, "Was executed " + to_string(diff_ms) + " milliseconds ago.");
-                myworld::logging::Log(myworld::logging::Type::INFO, "....ommitting further similar reports until next execution passed.");
-                _print_skip_has_happened = true;
-            }
-            return retval;
-        }
-        
-        _print_skip_has_happened = false;
-        _last_exec_time = std::chrono::high_resolution_clock::now();
-    }
 
     myworld::logging::Log(myworld::logging::Type::INFO, "Executing: " + this->_taskid);
     myworld::logging::Log(myworld::logging::Type::INFO, "    => " + action);
@@ -232,9 +253,23 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string
     return retval;
 }
 
-
 webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config) {
     webdash::RunReturn ret;
+
+    if (!ShouldExecuteTimewise(config)) {
+
+        if (_print_skip_has_happened == false) {
+            myworld::logging::Log(myworld::logging::Type::INFO, "Skipping: " + this->_taskid);
+            myworld::logging::Log(myworld::logging::Type::INFO, "Was executed XYZ milliseconds ago.");
+            myworld::logging::Log(myworld::logging::Type::INFO, "....ommitting further similar reports until next execution passed.");
+            _print_skip_has_happened = true;
+        }
+
+        return ret;
+    }
+
+    _print_skip_has_happened = false;
+    _last_exec_time = std::chrono::high_resolution_clock::now();
 
     if (_notify_dashboard) {
         myworld::dashboard::notify(_taskid);

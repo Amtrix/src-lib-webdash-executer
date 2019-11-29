@@ -11,7 +11,8 @@ namespace webdash {
     };
 
     struct RunConfig {
-        bool redirect_output_to_str;
+        bool run_only_with_frequency = false;
+        bool redirect_output_to_str = false;
         std::function<RunReturn(string, RunConfig)> CmdResolveAndRun;
     };
 }

@@ -17,7 +17,7 @@ WebDashConfig::WebDashConfig(string path) {
     try {
         configStream >> _config;
     } catch (...) {
-        Log(Type::ERR, "Was unable to parse the config file. Format error?");
+        Log(Type::ERR, "Was unable to parse the config '" + path + "' file. Format error?");
         return;
     }
 
