@@ -29,6 +29,8 @@ class WebDashConfigTask {
 
         bool IsValid() { return _is_valid; }
     private:
+        string SubstituteKeywords(string src);
+
         string _taskid;
         std::optional<string> _frequency;
         vector<string> _actions;
@@ -52,4 +54,6 @@ class WebDashConfigTask {
         bool _notify_dashboard = false;
 
         string _when_to_execute;
+
+        string _config_path;
 };

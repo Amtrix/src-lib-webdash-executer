@@ -13,6 +13,7 @@
 WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json task_config) {
     myworld::logging::Log(myworld::logging::Type::INFO, "Loading Task: " + taskid);
 
+    this->_config_path = config_path;
     this->_taskid = taskid;
 
     try {
@@ -85,24 +86,18 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
         myworld::logging::Log(myworld::logging::Type::WARN, "T| " + taskid + ": dashboard notification not specified.");
     }
 
-    size_t pos;
-    string pattern = "$.thisDir()";
-    while ((pos = _name.find(pattern)) != string::npos) {
-        _name.replace(pos, pattern.size(), myworld::paths::GetDirectoryOnlyOf(config_path));
-    }
+    _name = SubstituteKeywords(_name);
 
     for (auto& action : _actions) {
-        while ((pos = action.find(pattern)) != string::npos) {
-            action.replace(pos, pattern.size(), myworld::paths::GetDirectoryOnlyOf(config_path));
-        }
+        action = SubstituteKeywords(action);
+    }
+
+    for (auto& dependency : _dependencies) {
+        dependency = SubstituteKeywords(dependency);
     }
 
     if (_wdir.has_value()) {
-        string wdir = _wdir.value();
-        while ((pos = wdir.find(pattern)) != string::npos) {
-            wdir.replace(pos, pattern.size(), myworld::paths::GetDirectoryOnlyOf(config_path));
-        }
-        _wdir = wdir;
+        _wdir = SubstituteKeywords(_wdir.value());
     }
 }
 
@@ -257,7 +252,6 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config) {
     webdash::RunReturn ret;
 
     if (!ShouldExecuteTimewise(config)) {
-
         if (_print_skip_has_happened == false) {
             myworld::logging::Log(myworld::logging::Type::INFO, "Skipping: " + this->_taskid);
             myworld::logging::Log(myworld::logging::Type::INFO, "Was executed XYZ milliseconds ago.");
@@ -276,14 +270,21 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config) {
     }
 
     for (int i = 0; i < (int)_dependencies.size(); ++i) {
-        config.CmdResolveAndRun(_dependencies[i], config);
+        auto task = config.TaskRetriever(_dependencies[i]);
+
+        if (task.has_value()) {
+            auto ret_sub = task.value().Run(config);
+            ret.output += ret_sub.output;
+            ret.return_code |= ret_sub.return_code;
+        }
     }
 
     for (int i = 0; i < (int)_actions.size(); ++i) {
         string action = _actions[i];
 
-        if (action[0] == ':') {
-            auto ret_sub = config.CmdResolveAndRun(action, config);
+        auto maybesubtask = config.TaskRetriever(action);
+        if (maybesubtask.has_value()) {
+            auto ret_sub = maybesubtask.value().Run(config);
             ret.output += ret_sub.output;
             ret.return_code |= ret_sub.return_code;
         } else {
@@ -294,4 +295,15 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config) {
     }
 
     return ret;
+}
+
+string WebDashConfigTask::SubstituteKeywords(string src) {
+    size_t pos;
+    string pattern = "$.thisDir()";
+
+    while ((pos = src.find(pattern)) != string::npos) {
+        src.replace(pos, pattern.size(), myworld::paths::GetDirectoryOnlyOf(_config_path));
+    }
+
+    return src;
 }

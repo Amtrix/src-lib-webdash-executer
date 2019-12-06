@@ -4,6 +4,8 @@
 #include <vector>
 using namespace std;
 
+class WebDashConfigTask;
+
 namespace webdash {
     struct RunReturn {
         int return_code;
@@ -13,6 +15,6 @@ namespace webdash {
     struct RunConfig {
         bool run_only_with_frequency = false;
         bool redirect_output_to_str = false;
-        std::function<RunReturn(string, RunConfig)> CmdResolveAndRun;
+        std::function<std::optional<WebDashConfigTask>(string)> TaskRetriever;
     };
 }

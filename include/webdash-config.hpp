@@ -26,6 +26,9 @@ class WebDashConfig {
 
         bool IsInitialized() const { return _is_initialized; };
         
+        vector<string> GetTaskList();
+
+        std::optional<WebDashConfigTask> GetTask(const string cmdname);
     private:
         json _config;
 
