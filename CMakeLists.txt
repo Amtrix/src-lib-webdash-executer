@@ -20,6 +20,7 @@ include_directories(${EXTERNAL_LIB_PATH}/websocketpp)
 list(APPEND ALL_CPP_FILES
     "src/webdash-config.cpp"
     "src/webdash-config-task.cpp"
+    "src/webdash-global.cpp"
 )
 
 ADD_LIBRARY(webdash-executer STATIC ${ALL_CPP_FILES} )

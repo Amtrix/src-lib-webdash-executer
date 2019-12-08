@@ -1,4 +1,5 @@
 #include "webdash-config-task.hpp"
+#include "webdash-global.hpp"
 
 #include <myworldcpp/paths.hpp>
 
@@ -86,18 +87,24 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
         myworld::logging::Log(myworld::logging::Type::WARN, "T| " + taskid + ": dashboard notification not specified.");
     }
 
-    _name = SubstituteKeywords(_name);
+    auto defs = WebDashGlobalConfig::GetConfig().GetAllDefinitions();
+    defs.push_back(make_pair("$.thisDir()", myworld::paths::GetDirectoryOnlyOf(_config_path)));
 
-    for (auto& action : _actions) {
-        action = SubstituteKeywords(action);
-    }
+    // Substitue keywords.
+    for (auto& [key, value] : defs) {
+        _name = SubstituteKeywords(_name, key, value);
 
-    for (auto& dependency : _dependencies) {
-        dependency = SubstituteKeywords(dependency);
-    }
+        for (auto& action : _actions) {
+            action = SubstituteKeywords(action, key, value);
+        }
 
-    if (_wdir.has_value()) {
-        _wdir = SubstituteKeywords(_wdir.value());
+        for (auto& dependency : _dependencies) {
+            dependency = SubstituteKeywords(dependency, key, value);
+        }
+
+        if (_wdir.has_value()) {
+            _wdir = SubstituteKeywords(_wdir.value(), key, value);
+        }
     }
 }
 
@@ -297,12 +304,11 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config) {
     return ret;
 }
 
-string WebDashConfigTask::SubstituteKeywords(string src) {
+string WebDashConfigTask::SubstituteKeywords(string src, string keyword, string replace_with) {
     size_t pos;
-    string pattern = "$.thisDir()";
 
-    while ((pos = src.find(pattern)) != string::npos) {
-        src.replace(pos, pattern.size(), myworld::paths::GetDirectoryOnlyOf(_config_path));
+    while ((pos = src.find(keyword)) != string::npos) {
+        src.replace(pos, keyword.size(), replace_with);
     }
 
     return src;

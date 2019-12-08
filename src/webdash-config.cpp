@@ -2,6 +2,7 @@
 #include "webdash-types.hpp"
 
 #include <optional>
+#include <nlohmann/json.hpp>
 using namespace myworld::logging;
 
 WebDashConfig::WebDashConfig(string path) {
