@@ -1,5 +1,6 @@
 #include "webdash-config.hpp"
 #include "webdash-types.hpp"
+#include "webdash-core.hpp"
 
 #include <optional>
 #include <nlohmann/json.hpp>
@@ -10,17 +11,17 @@ WebDashConfig::WebDashConfig(string path) {
 
     ifstream configStream;
     try {
-        Log(Type::INFO, "UXPath: " + _path);
+        MyWorld().Log(Type::INFO, "Opening webdash config file: " + _path);
         configStream.open(_path.c_str(), ifstream::in);
     } catch (...) {
-        Log(Type::ERR, "Issues opening to config file. Something wrong with path?");
+        MyWorld().Log(Type::ERR, "Issues opening to config file. Something wrong with path?");
         return;
     }
     
     try {
         configStream >> _config;
     } catch (...) {
-        Log(Type::ERR, "Was unable to parse the config '" + path + "' file. Format error?");
+        MyWorld().Log(Type::ERR, "Was unable to parse the config '" + path + "' file. Format error?");
         return;
     }
 
@@ -28,20 +29,20 @@ WebDashConfig::WebDashConfig(string path) {
     try {
         cmds = _config["commands"];
     } catch (...) {
-        Log(Type::ERR, "No 'commands' given.");
+        MyWorld().Log(Type::ERR, "No 'commands' given.");
     }
 
-    Log(Type::INFO, "Commands loaded. Available count: " + to_string(cmds.size()));
+    MyWorld().Log(Type::INFO, "Commands loaded. Available count: " + to_string(cmds.size()));
     
     int cmd_dx = 0;
     for (auto cmd : cmds) {
-        Log(Type::INFO, to_string(cmd_dx) + "th command: " + cmd.dump());
+        MyWorld().Log(Type::INFO, to_string(cmd_dx) + "th command: " + cmd.dump());
         
         try {
             const string cmdid = path + "#" + cmd["name"].get<std::string>();
             tasks.emplace_back(path, cmdid, cmd);
         } catch (...) {
-            Log(Type::INFO, "Failed getting name from " + to_string(cmd_dx) + "th command.");
+            MyWorld().Log(Type::INFO, "Failed getting name from " + to_string(cmd_dx) + "th command.");
         }
 
         cmd_dx++;
@@ -97,7 +98,8 @@ std::vector<webdash::RunReturn> WebDashConfig::Run(const string cmdName, webdash
             std::string real_cmd_name = cmdid.substr(configpath.length() + 1);
 
             std::filesystem::path path(configpath);
-            WebDashConfig other(((path.is_absolute() == false) ? myworld::utility::GetRepositoryRoot() + "/" : "") + configpath);
+            cout << path << " " << path.is_absolute() << endl;
+            WebDashConfig other(((path.is_absolute() == false) ? WebDashCore::Get().GetMyWorldRootDirectory() + "/" : "") + configpath);
 
             if (!other.IsInitialized())
                 return nullopt;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "webdash-config-task.hpp"
+#include "webdash-core.hpp"
 
 #include <myworldcpp/logging.hpp>
 #include <myworldcpp/utility.hpp>
