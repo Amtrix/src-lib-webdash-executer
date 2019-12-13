@@ -7,14 +7,13 @@
 #include <queue>
 #include <filesystem>
 using namespace std;
-using namespace myworld::logging;
 using json = nlohmann::json;
 
 WebDashCore::WebDashCore() {
     _CalculateMyWorldRootDirectory();
     _InitializeLoggingFiles();
 
-    Log(Type::INFO, "Determined WebDash root path: " + _myworld_root_path);
+    Log(WebDash::LogType::INFO, "Determined WebDash root path: " + _myworld_root_path);
 }
 
 void WebDashCore::Create() {
@@ -38,7 +37,7 @@ vector<pair<string, string>> WebDashCore::GetAllDefinitions(bool surpress_loggin
     try {
         configStream.open(path.c_str(), ifstream::in);
     } catch (...) {
-        if (!surpress_logging) Log(Type::ERR, "Issues opening to definitions file.");
+        if (!surpress_logging) Log(WebDash::LogType::ERR, "Issues opening to definitions file.");
         return ret;
     }
 
@@ -46,7 +45,7 @@ vector<pair<string, string>> WebDashCore::GetAllDefinitions(bool surpress_loggin
     try {
         configStream >> _defs;
     } catch (...) {
-        if (!surpress_logging) Log(Type::ERR, "Was unable to parse the config '" + path + "' file. Format error?");
+        if (!surpress_logging) Log(WebDash::LogType::ERR, "Was unable to parse the config '" + path + "' file. Format error?");
         return ret;
     }
 
@@ -99,9 +98,9 @@ bool WebDashCore::_CalculateMyWorldRootDirectory() {
 }
 
 void WebDashCore::_InitializeLoggingFiles() {
-    Log(Type::ERR, "");
-    Log(Type::INFO, "");
-    Log(Type::WARN, "");
+    Log(WebDash::LogType::ERR, "");
+    Log(WebDash::LogType::INFO, "");
+    Log(WebDash::LogType::WARN, "");
 }
 
 string WebDashCore::GetMyWorldRootDirectory() {
@@ -112,7 +111,7 @@ std::filesystem::path WebDashCore::GetPersistenteStoragePath() {
     filesystem::path ret = GetMyWorldRootDirectory();
     ret += string("/app-persistent/data/") + _WEBDASH_PROJECT_NAME_;
 
-    Log(myworld::logging::Type::INFO, "Create recursive: " + ret.string());
+    Log(WebDash::LogType::INFO, "Create recursive: " + ret.string());
 
     std::filesystem::create_directories(ret);
     
@@ -158,7 +157,7 @@ void WebDashCore::LoadFromMyStorage(const string filename, ReadType type, std::f
         infilestream.open(finpath.c_str(), ifstream::in);
         fnc(infilestream);
     } catch (...) {
-        Log(myworld::logging::Type::ERR,
+        Log(WebDash::LogType::ERR,
             "Issues opening " + filename + ". Not saved yet? Fallback to default.");
 
         stringstream instream;
@@ -176,7 +175,7 @@ void WebDashCore::LoadFromMyStorage(const string filename, ReadType type, std::f
     }
 }
 
-void WebDashCore::Log(Type type, const std::string msg, const bool append_if_possible) {
+void WebDashCore::Log(WebDash::LogType type, const std::string msg, const bool append_if_possible) {
     // Get current time to add timestamp to the log entry.
     std::string curr_time = "";
     {
@@ -188,7 +187,7 @@ void WebDashCore::Log(Type type, const std::string msg, const bool append_if_pos
         curr_time = ss.str();
     }
 
-    const string fpath = GetAndCreateLogDirectory() + "/logging." + kTypeToString.at(type) + ".txt";
+    const string fpath = GetAndCreateLogDirectory() + "/logging." + WebDash::kTypeToString.at(type) + ".txt";
     const bool fexists = std::filesystem::exists(fpath.c_str()); // does the file already exist?
     
     // Program was newly started and our goal is not to append

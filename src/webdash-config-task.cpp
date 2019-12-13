@@ -12,7 +12,7 @@
 #include <ctime>
 
 WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json task_config) {
-    MyWorld().Log(myworld::logging::Type::INFO, "Loading Task: " + taskid);
+    MyWorld().Log(WebDash::LogType::INFO, "Loading Task: " + taskid);
 
     this->_config_path = config_path;
     this->_taskid = taskid;
@@ -21,7 +21,7 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
         const string name = task_config["name"].get<std::string>();
         this->_name = name;
     } catch (...) {
-        MyWorld().Log(myworld::logging::Type::ERR, "T| " + taskid + ": no name.");
+        MyWorld().Log(WebDash::LogType::ERR, "T| " + taskid + ": no name.");
         _is_valid = false;
     }
 
@@ -45,7 +45,7 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
 
         if (!has_action) {
             _is_valid = false;
-            MyWorld().Log(myworld::logging::Type::ERR, "T| " + taskid + ": no actions.");
+            MyWorld().Log(WebDash::LogType::ERR, "T| " + taskid + ": no actions.");
         }
     }
 
@@ -55,7 +55,7 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
         for (auto dependency : dependencies) 
             this->_dependencies.push_back(dependency.get<std::string>());
     } catch (...) {
-        MyWorld().Log(myworld::logging::Type::WARN, "T| " + taskid + ": no dependencies.");
+        MyWorld().Log(WebDash::LogType::WARN, "T| " + taskid + ": no dependencies.");
     }
 
     
@@ -63,28 +63,28 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
         const string frequency = task_config["frequency"].get<std::string>();
         this->_frequency = frequency;
     } catch (...) {
-        MyWorld().Log(myworld::logging::Type::WARN, "T| " + taskid + ": no frequency.");
+        MyWorld().Log(WebDash::LogType::WARN, "T| " + taskid + ": no frequency.");
     }
 
     try {
         const string when = task_config["when"].get<std::string>();
         this->_when_to_execute = when;
     } catch (...) {
-        MyWorld().Log(myworld::logging::Type::WARN, "T| " + taskid + ": no 'when'.");
+        MyWorld().Log(WebDash::LogType::WARN, "T| " + taskid + ": no 'when'.");
     }
 
     try {
         const string wdir = task_config["wdir"].get<std::string>();
         this->_wdir = wdir;
     } catch (...) {
-        MyWorld().Log(myworld::logging::Type::WARN, "T| " + taskid + ": no working directory (wdir) given.");
+        MyWorld().Log(WebDash::LogType::WARN, "T| " + taskid + ": no working directory (wdir) given.");
     }
 
     try {
         const bool val = task_config["notify-dashboard"].get<bool>();
         this->_notify_dashboard = val;
     } catch (...) {
-        MyWorld().Log(myworld::logging::Type::WARN, "T| " + taskid + ": dashboard notification not specified.");
+        MyWorld().Log(WebDash::LogType::WARN, "T| " + taskid + ": dashboard notification not specified.");
     }
 
     auto defs = WebDashCore::Get().GetAllDefinitions();
@@ -161,8 +161,8 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string
     webdash::RunReturn retval;
     _times_called++;
 
-    MyWorld().Log(myworld::logging::Type::INFO, "Executing: " + this->_taskid);
-    MyWorld().Log(myworld::logging::Type::INFO, "    => " + action);
+    MyWorld().Log(WebDash::LogType::INFO, "Executing: " + this->_taskid);
+    MyWorld().Log(WebDash::LogType::INFO, "    => " + action);
 
     cout << "Forking... " << endl;
 
@@ -183,9 +183,9 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string
     if (pid == 0) {
         if (_wdir.has_value()) {
             if (chdir(_wdir.value().c_str()) != 0) {
-                MyWorld().Log(myworld::logging::Type::ERR, "Working directory not set to: " + _wdir.value());
+                MyWorld().Log(WebDash::LogType::ERR, "Working directory not set to: " + _wdir.value());
             }
-            MyWorld().Log(myworld::logging::Type::INFO, "Working directory set to: " + _wdir.value());
+            MyWorld().Log(WebDash::LogType::INFO, "Working directory set to: " + _wdir.value());
         }
 
         std::istringstream iss(action.c_str());
@@ -260,9 +260,9 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config) {
 
     if (!ShouldExecuteTimewise(config)) {
         if (_print_skip_has_happened == false) {
-            MyWorld().Log(myworld::logging::Type::INFO, "Skipping: " + this->_taskid);
-            MyWorld().Log(myworld::logging::Type::INFO, "Was executed XYZ milliseconds ago.");
-            MyWorld().Log(myworld::logging::Type::INFO, "....ommitting further similar reports until next execution passed.");
+            MyWorld().Log(WebDash::LogType::INFO, "Skipping: " + this->_taskid);
+            MyWorld().Log(WebDash::LogType::INFO, "Was executed XYZ milliseconds ago.");
+            MyWorld().Log(WebDash::LogType::INFO, "....ommitting further similar reports until next execution passed.");
             _print_skip_has_happened = true;
         }
 

@@ -4,24 +4,23 @@
 
 #include <optional>
 #include <nlohmann/json.hpp>
-using namespace myworld::logging;
 
 WebDashConfig::WebDashConfig(string path) {
     _path = path;
 
     ifstream configStream;
     try {
-        MyWorld().Log(Type::INFO, "Opening webdash config file: " + _path);
+        MyWorld().Log(WebDash::LogType::INFO, "Opening webdash config file: " + _path);
         configStream.open(_path.c_str(), ifstream::in);
     } catch (...) {
-        MyWorld().Log(Type::ERR, "Issues opening to config file. Something wrong with path?");
+        MyWorld().Log(WebDash::LogType::ERR, "Issues opening to config file. Something wrong with path?");
         return;
     }
     
     try {
         configStream >> _config;
     } catch (...) {
-        MyWorld().Log(Type::ERR, "Was unable to parse the config '" + path + "' file. Format error?");
+        MyWorld().Log(WebDash::LogType::ERR, "Was unable to parse the config '" + path + "' file. Format error?");
         return;
     }
 
@@ -29,20 +28,20 @@ WebDashConfig::WebDashConfig(string path) {
     try {
         cmds = _config["commands"];
     } catch (...) {
-        MyWorld().Log(Type::ERR, "No 'commands' given.");
+        MyWorld().Log(WebDash::LogType::ERR, "No 'commands' given.");
     }
 
-    MyWorld().Log(Type::INFO, "Commands loaded. Available count: " + to_string(cmds.size()));
+    MyWorld().Log(WebDash::LogType::INFO, "Commands loaded. Available count: " + to_string(cmds.size()));
     
     int cmd_dx = 0;
     for (auto cmd : cmds) {
-        MyWorld().Log(Type::INFO, to_string(cmd_dx) + "th command: " + cmd.dump());
+        MyWorld().Log(WebDash::LogType::INFO, to_string(cmd_dx) + "th command: " + cmd.dump());
         
         try {
             const string cmdid = path + "#" + cmd["name"].get<std::string>();
             tasks.emplace_back(path, cmdid, cmd);
         } catch (...) {
-            MyWorld().Log(Type::INFO, "Failed getting name from " + to_string(cmd_dx) + "th command.");
+            MyWorld().Log(WebDash::LogType::INFO, "Failed getting name from " + to_string(cmd_dx) + "th command.");
         }
 
         cmd_dx++;
