@@ -110,14 +110,14 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
 
 bool is_number(const std::string& s) {
     char* end = 0;
-    double val = strtod(s.c_str(), &end);
+    const double val = strtod(s.c_str(), &end);
     return end != s.c_str() && *end == '\0' && val != HUGE_VAL;
 }
 
 bool WebDashConfigTask::ShouldExecuteTimewise(webdash::RunConfig config) {
-    auto diff = std::chrono::high_resolution_clock::now() - _last_exec_time;
-    auto diff_h = duration_cast<hours>(diff).count();
-    auto diff_ms = duration_cast<milliseconds>(diff).count();
+    const auto diff = std::chrono::high_resolution_clock::now() - _last_exec_time;
+    const auto diff_h = duration_cast<hours>(diff).count();
+    const auto diff_ms = duration_cast<milliseconds>(diff).count();
 
     // We expect frequency because of <run_only_with_frequency> but didn't get any.
     if (config.run_only_with_frequency && !_frequency.has_value())
@@ -141,11 +141,11 @@ bool WebDashConfigTask::ShouldExecuteTimewise(webdash::RunConfig config) {
         std::time_t _time_last  = std::chrono::system_clock::to_time_t(_last_exec_time);
         std::time_t _time_today = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
-        auto tm_last  = gmtime(&_time_last);
-        auto tm_today = gmtime(&_time_today);
+        const auto tm_last  = gmtime(&_time_last);
+        const auto tm_today = gmtime(&_time_today);
 
-        int day_last  = tm_last->tm_mday;
-        int day_today = tm_today->tm_mday;
+        const int day_last  = tm_last->tm_mday;
+        const int day_today = tm_today->tm_mday;
 
         if (day_last != day_today) {
             return true;
@@ -179,7 +179,7 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string
         exit(1);
     }
 
-    pid_t pid = fork();
+    const pid_t pid = fork();
     if (pid == 0) {
         if (_wdir.has_value()) {
             if (chdir(_wdir.value().c_str()) != 0) {
@@ -249,7 +249,7 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string
     }
 
     int status;
-    pid_t wpid = waitpid(pid, &status, 0); // wait for child to finish before exiting
+    const pid_t wpid = waitpid(pid, &status, 0); // wait for child to finish before exiting
     
     retval.return_code = wpid == pid && WIFEXITED(status) ? WEXITSTATUS(status) : -1;
     return retval;
@@ -287,7 +287,7 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config) {
     }
 
     for (int i = 0; i < (int)_actions.size(); ++i) {
-        string action = _actions[i];
+        const string action = _actions[i];
 
         auto maybesubtask = config.TaskRetriever(action);
         if (maybesubtask.has_value()) {

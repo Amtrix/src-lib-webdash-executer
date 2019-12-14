@@ -11,22 +11,18 @@ using namespace std;
 // Must be specified by consuming libraries.
 extern const string _WEBDASH_PROJECT_NAME_;
 
-namespace myworld {
-    namespace storage {
-        enum class WriteType {
-            Append,
-            Clear,
-            End
-        };
-
-        enum class ReadType {
-            JSON,
-            Text
-        };
-    }
-}
-
 namespace WebDash {
+    enum class StoreWriteType {
+        Append,
+        Clear,
+        End
+    };
+
+    enum class StoreReadType {
+        JSON,
+        Text
+    };
+    
     enum class LogType {
         INFO = 1,
         ERR = 2,
@@ -42,13 +38,15 @@ namespace WebDash {
     };    
 }
 
-using namespace myworld::storage;
-using WriterType = std::function<void(WriteType, string)>;
+using WriterType = std::function<void(WebDash::StoreWriteType, string)>;
 
 class WebDashCore {
     public:
         // Returns the singleton of type WebDashCore.
         static WebDashCore Get();
+
+        // Creates the singleton.
+        static void Create(std::optional<string> cwd = nullopt);
 
         // Returns all definitions from within GetMyWorldRootDirectory()/definitions.json
         // Format: ($#.A.B.C.D.E, value)
@@ -64,7 +62,7 @@ class WebDashCore {
         void WriteToMyStorage(const string filename, std::function<void(WriterType)> fnc);
 
         // Provide a function to the caller to read from file <filename>.
-        void LoadFromMyStorage(const string filename, ReadType type, std::function<void(istream&)> fnc);
+        void LoadFromMyStorage(const string filename, WebDash::StoreReadType type, std::function<void(istream&)> fnc);
 
         // Logs into GetAndCreateLogDirectory()/app-temporary/logging/_WEBDASH_PROJECT_NAME_;
         void Log(WebDash::LogType type, const std::string msg, const bool append_if_possible = false);
@@ -72,12 +70,12 @@ class WebDashCore {
         // Return path of logging directroy and create if not exists:
         // GetAndCreateLogDirectory()/app-temporary/logging/_WEBDASH_PROJECT_NAME_
         string GetAndCreateLogDirectory();
+
+        // Set working directory.
+        void SetCwd(std::optional<string> cwd);
     
     private:
         WebDashCore();
-
-        // Creates the singleton.
-        static void Create();
 
         bool _CalculateMyWorldRootDirectory();
 
@@ -89,6 +87,8 @@ class WebDashCore {
         static std::optional<WebDashCore> _config;
 
         string _myworld_root_path;
+
+        std::optional<string> _preset_cwd;
 };
 
 inline WebDashCore MyWorld() {

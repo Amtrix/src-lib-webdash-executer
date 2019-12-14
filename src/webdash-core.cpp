@@ -16,14 +16,25 @@ WebDashCore::WebDashCore() {
     Log(WebDash::LogType::INFO, "Determined WebDash root path: " + _myworld_root_path);
 }
 
-void WebDashCore::Create() {
-    if (_config.has_value()) return;
+void WebDashCore::Create(std::optional<string> cwd) {
+    if (_config.has_value()) {
+        _config->Log(WebDash::LogType::WARN, "Create has been called before.");
+        return;
+    }
 
     _config = WebDashCore();
+    _config->SetCwd(cwd);
 }
 
 WebDashCore WebDashCore::Get() {
-    Create();
+    if (!_config.has_value()) {
+        Create();
+
+        if (_config.has_value())
+            _config->Log(WebDash::LogType::WARN, "Default creation done for WebDashCore");
+        else
+            cout << "Default creation for WebDashCore has failed" << endl;
+    }
 
     return _config.value();
 }
@@ -72,6 +83,7 @@ vector<pair<string, string>> WebDashCore::GetAllDefinitions(bool surpress_loggin
 }
 
 bool WebDashCore::_CalculateMyWorldRootDirectory() {
+    // Get the working directory.
     char current_path[2555];
     if (!GetCurrentDir(current_path, sizeof(current_path))) {
         return false;
@@ -79,6 +91,8 @@ bool WebDashCore::_CalculateMyWorldRootDirectory() {
     current_path[sizeof(current_path) - 1] = '\0';
 
     fs::path fs_path(current_path);
+    if (_preset_cwd.has_value())
+        fs_path = _preset_cwd.value();
 
     while (true) {
         _myworld_root_path = fs_path;
@@ -127,15 +141,15 @@ void WebDashCore::WriteToMyStorage(const string filename, std::function<void(Wri
     ofstream out;
     out.open(persistent_file, std::ofstream::out | std::ofstream::app);
 
-    WriterType writer = [&](WriteType type, const string data) {
-        if (type == WriteType::End) {
+    WriterType writer = [&](WebDash::StoreWriteType type, const string data) {
+        if (type == WebDash::StoreWriteType::End) {
             finished = true;
             return;
-        } else if (type == WriteType::Clear) {
+        } else if (type == WebDash::StoreWriteType::Clear) {
             out.close();
             out.open(persistent_file, std::ofstream::out);
             return;
-        } else if (type == WriteType::Append) {
+        } else if (type == WebDash::StoreWriteType::Append) {
             out << data;
         }
     };
@@ -149,7 +163,7 @@ void WebDashCore::WriteToMyStorage(const string filename, std::function<void(Wri
     }
 }
 
-void WebDashCore::LoadFromMyStorage(const string filename, ReadType type, std::function<void(istream&)> fnc) {
+void WebDashCore::LoadFromMyStorage(const string filename, WebDash::StoreReadType type, std::function<void(istream&)> fnc) {
     try {
         string finpath = GetPersistenteStoragePath().string() + ("/" + filename);
         
@@ -157,12 +171,11 @@ void WebDashCore::LoadFromMyStorage(const string filename, ReadType type, std::f
         infilestream.open(finpath.c_str(), ifstream::in);
         fnc(infilestream);
     } catch (...) {
-        Log(WebDash::LogType::ERR,
-            "Issues opening " + filename + ". Not saved yet? Fallback to default.");
+        Log(WebDash::LogType::ERR, "Issues opening " + filename + ". Not saved yet? Fallback to default.");
 
         stringstream instream;
         switch (type) {
-            case ReadType::JSON:
+            case WebDash::StoreReadType::JSON:
                 instream.str("{}");
                 break;
             default:

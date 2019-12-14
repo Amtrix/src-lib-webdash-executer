@@ -56,7 +56,7 @@ string WebDashConfig::GetPath() const {
 
 void WebDashConfig::Serialize(WriterType writer) {
     // use writer to write to file.
-    writer(myworld::storage::WriteType::Append, _path);
+    writer(WebDash::StoreWriteType::Append, _path);
 }
 
 vector<string> WebDashConfig::GetTaskList() {
@@ -84,7 +84,7 @@ std::vector<webdash::RunReturn> WebDashConfig::Run(const string cmdName, webdash
     // Meaning, one can specify ":<task_name>" as an action.
     //                          "$.thisDir()/path-relative-to-dir-of-current-config/webdash.config.json:blabla"
     //                          "./path-relative-to-myworld/x/y/z/webdash.config.json:blabla"
-    runconfig.TaskRetriever = [&](string cmdid) -> optional<WebDashConfigTask> {
+    runconfig.TaskRetriever = [&](const string cmdid) -> optional<WebDashConfigTask> {
         cout << "Resolving dependency: " << cmdid << endl;
 
         if (cmdid[0] == ':') {
@@ -93,8 +93,8 @@ std::vector<webdash::RunReturn> WebDashConfig::Run(const string cmdName, webdash
             if (cmdid.find(":") == string::npos)
                 return nullopt;
 
-            std::string configpath = cmdid.substr(0, cmdid.find(":"));
-            std::string real_cmd_name = cmdid.substr(configpath.length() + 1);
+            const std::string configpath = cmdid.substr(0, cmdid.find(":"));
+            const std::string real_cmd_name = cmdid.substr(configpath.length() + 1);
 
             std::filesystem::path path(configpath);
             cout << path << " " << path.is_absolute() << endl;
