@@ -18,6 +18,19 @@ namespace {
     }
 }
 
+
+namespace {
+    string SubstituteKeywords(string src, string keyword, string replace_with) {
+        size_t pos;
+
+        while ((pos = src.find(keyword)) != string::npos) {
+            src.replace(pos, keyword.size(), replace_with);
+        }
+
+        return src;
+    }
+}
+
 WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json task_config) {
     MyWorld().Log(WebDash::LogType::INFO, "Loading Task: " + taskid);
 
@@ -309,14 +322,4 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config) {
     }
 
     return ret;
-}
-
-string WebDashConfigTask::SubstituteKeywords(string src, string keyword, string replace_with) {
-    size_t pos;
-
-    while ((pos = src.find(keyword)) != string::npos) {
-        src.replace(pos, keyword.size(), replace_with);
-    }
-
-    return src;
 }

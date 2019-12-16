@@ -75,6 +75,10 @@ class WebDashCore {
 
         // Set working directory.
         void SetCwd(std::optional<string> cwd);
+
+        vector<string> GetPathAdditions();
+
+        vector<pair<string, string>> GetEnvAdditions();
     
     private:
         WebDashCore();

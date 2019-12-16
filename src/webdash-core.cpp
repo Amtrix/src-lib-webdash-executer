@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 using namespace std;
 using json = nlohmann::json;
 
@@ -69,8 +70,21 @@ vector<pair<string, string>> WebDashCore::GetAllDefinitions(bool surpress_loggin
         pair<string, json> u = Q.front();
         Q.pop();
 
+        if (u.second.is_array()) {
+            int dx = 0;
+            for (auto elem : u.second) {
+                const string nkey = u.first + ".[" + to_string(dx) + "]";
+                if (elem.is_object() || elem.is_array())
+                    Q.push(make_pair(nkey, elem));
+                else
+                    ret.push_back(make_pair("$#" + nkey, elem.get<std::string>()));
+                dx++;
+            }
+            continue;
+        }
+
         for (auto& [key, value] : u.second.items()) {
-            if (value.is_object()) {
+            if (value.is_object() || value.is_array()) {
                 Q.push(make_pair(u.first + "." + key, value));
             } else {
                 ret.push_back(make_pair(
@@ -107,7 +121,7 @@ bool WebDashCore::_CalculateMyWorldRootDirectory() {
         fs_path = _preset_cwd.value();
 
     while (true) {
-        _myworld_root_path = fs_path;
+        _myworld_root_path = fs_path.string();
 
         auto defs = GetAllDefinitions(true);
         for (auto def : defs) {
@@ -251,6 +265,72 @@ string WebDashCore::GetAndCreateLogDirectory() {
 
 void WebDashCore::SetCwd(std::optional<string> cwd) {
     _preset_cwd = cwd;
+}
+
+namespace {
+    void ParseJsonConcats(vector<pair<string, string>> defs, std::function<void(vector<string>, string)> func) {
+        for (std::pair<string, string> entry : defs) {
+            cout << entry.first << " " << entry.second << endl;
+            istringstream iss(entry.first);
+
+            std::vector<std::string> tokens;
+            std::string token;
+            while (std::getline(iss, token, '.')) {
+                if (!token.empty())
+                    tokens.push_back(token);
+            }
+
+            func(tokens, entry.second);
+        }
+    }
+
+    string SubstituteKeywords(string src, string keyword, string replace_with) {
+        size_t pos;
+
+        while ((pos = src.find(keyword)) != string::npos) {
+            src.replace(pos, keyword.size(), replace_with);
+        }
+
+        return src;
+    }
+
+    string NormalizeKeyw(string src) {
+        vector<pair<string, string>> subs;
+        subs.push_back(make_pair("$.rootDir()", GetRepositoryRoot().value_or("unspecified")));
+
+        // Substitue keywords.
+        for (auto& [key, value] : subs) {
+            src = SubstituteKeywords(src, key, value);
+        }
+
+        return src;
+    }
+}
+
+vector<string> WebDashCore::GetPathAdditions() {
+    vector<string> ret;
+
+    auto defs = GetAllDefinitions(true);
+    ParseJsonConcats(defs, [&](vector<string> tokens, string val) {
+        if (tokens.size() == 3 && tokens[1] == "path-add") {
+            ret.push_back(NormalizeKeyw(val));
+        }
+    });
+
+    return ret;
+}
+
+vector<pair<string, string>> WebDashCore::GetEnvAdditions() {
+    vector<pair<string, string>> ret;
+
+    auto defs = GetAllDefinitions(true);
+    ParseJsonConcats(defs, [&](vector<string> tokens, string val) {
+        if (tokens.size() == 3 && tokens[1] == "env") {
+            ret.push_back(make_pair(tokens[2], NormalizeKeyw(val)));
+        }
+    });
+
+    return ret;
 }
 
 std::optional<WebDashCore> WebDashCore::_config = nullopt;

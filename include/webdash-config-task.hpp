@@ -27,7 +27,6 @@ class WebDashConfigTask {
 
         bool IsValid() { return _is_valid; }
     private:
-        string SubstituteKeywords(string src, string keyword, string replace_with);
 
         string _taskid;
         std::optional<string> _frequency;
