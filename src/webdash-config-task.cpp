@@ -1,8 +1,6 @@
 #include "webdash-config-task.hpp"
 #include "webdash-core.hpp"
 
-#include <myworldcpp/paths.hpp>
-
 #include <cstdio>
 #include <unistd.h>
 #include <fcntl.h>
@@ -10,6 +8,15 @@
 #include <errno.h>
 #include <sstream>
 #include <ctime>
+#include <iostream>
+using namespace std;
+
+namespace {
+    inline string GetDirectoryOnlyOf(string full_fulename) {
+        size_t pos = full_fulename.find_last_of("\\/");
+        return (std::string::npos == pos) ? "" : full_fulename.substr(0, pos);
+    }
+}
 
 WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json task_config) {
     MyWorld().Log(WebDash::LogType::INFO, "Loading Task: " + taskid);
@@ -88,7 +95,7 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
     }
 
     auto defs = WebDashCore::Get().GetAllDefinitions();
-    defs.push_back(make_pair("$.thisDir()", myworld::paths::GetDirectoryOnlyOf(_config_path)));
+    defs.push_back(make_pair("$.thisDir()", GetDirectoryOnlyOf(_config_path)));
 
     // Substitue keywords.
     for (auto& [key, value] : defs) {
