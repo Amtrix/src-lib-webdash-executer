@@ -67,6 +67,8 @@ class WebDashCore {
         // Logs into GetAndCreateLogDirectory()/app-temporary/logging/_WEBDASH_PROJECT_NAME_;
         void Log(WebDash::LogType type, const std::string msg, const bool append_if_possible = false);
 
+        void Notify(const std::string msg);
+
         // Return path of logging directroy and create if not exists:
         // GetAndCreateLogDirectory()/app-temporary/logging/_WEBDASH_PROJECT_NAME_
         string GetAndCreateLogDirectory();

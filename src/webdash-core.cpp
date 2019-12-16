@@ -10,7 +10,10 @@ using namespace std;
 using json = nlohmann::json;
 
 WebDashCore::WebDashCore() {
-    _CalculateMyWorldRootDirectory();
+    if (!_CalculateMyWorldRootDirectory()) {
+        cout << "Could not find WebDash root directory." << endl;
+        return;
+    }
     _InitializeLoggingFiles();
 
     Log(WebDash::LogType::INFO, "Determined WebDash root path: " + _myworld_root_path);
@@ -48,7 +51,7 @@ vector<pair<string, string>> WebDashCore::GetAllDefinitions(bool surpress_loggin
     try {
         configStream.open(path.c_str(), ifstream::in);
     } catch (...) {
-        if (!surpress_logging) Log(WebDash::LogType::ERR, "Issues opening to definitions file.");
+        if (!surpress_logging) Log(WebDash::LogType::ERR, "Issues opening the definitions file.");
         return ret;
     }
 
@@ -82,6 +85,22 @@ vector<pair<string, string>> WebDashCore::GetAllDefinitions(bool surpress_loggin
     return ret;
 }
 
+inline std::optional<string> GetRepositoryRoot() {
+    std::optional<string> myworld_path = nullopt;
+    char* myworld_path_c = nullptr;
+#ifdef _MSC_VER
+    size_t myworld_path_len = 0;
+    if (_dupenv_s(&myworld_path_c, &myworld_path_len, "MYWORLD") == 0 && myworld_path_c != nullptr)
+#else
+    myworld_path_c = getenv("MYWORLD");
+    if (myworld_path_c != NULL)
+#endif
+    {
+        myworld_path = myworld_path_c;
+    }
+    return myworld_path;
+}
+
 bool WebDashCore::_CalculateMyWorldRootDirectory() {
     // Get the working directory.
     char current_path[2555];
@@ -104,11 +123,20 @@ bool WebDashCore::_CalculateMyWorldRootDirectory() {
         }
 
         if (fs_path == fs_path.root_path())
-            return false;
+            break;
         
         fs_path = fs_path.parent_path();
     }
-    return true;
+
+    // Still none found, check environment path
+    auto myworld_env = GetRepositoryRoot();
+
+    if (myworld_env.has_value()) {
+        _myworld_root_path = myworld_env.value();
+        return true;
+    }
+
+    return false;
 }
 
 void WebDashCore::_InitializeLoggingFiles() {
@@ -164,14 +192,14 @@ void WebDashCore::WriteToMyStorage(const string filename, std::function<void(Wri
 }
 
 void WebDashCore::LoadFromMyStorage(const string filename, WebDash::StoreReadType type, std::function<void(istream&)> fnc) {
+    string finpath = GetPersistenteStoragePath().string() + ("/" + filename);
+    
     try {
-        string finpath = GetPersistenteStoragePath().string() + ("/" + filename);
-        
         ifstream infilestream;
         infilestream.open(finpath.c_str(), ifstream::in);
         fnc(infilestream);
     } catch (...) {
-        Log(WebDash::LogType::ERR, "Issues opening " + filename + ". Not saved yet? Fallback to default.");
+        Log(WebDash::LogType::ERR, "Issues opening " + finpath + ". Not saved yet? Fallback to default.");
 
         stringstream instream;
         switch (type) {
@@ -217,11 +245,19 @@ void WebDashCore::Log(WebDash::LogType type, const std::string msg, const bool a
     out << curr_time << ": " << msg << std::endl;
 }
 
+void WebDashCore::Notify(const std::string msg) {
+    Log(WebDash::LogType::NOTIFY, msg, true);
+}
+
 string WebDashCore::GetAndCreateLogDirectory() {
     const string myworld_path = GetMyWorldRootDirectory();
     const string finpath = myworld_path + "/app-temporary/logging/" + _WEBDASH_PROJECT_NAME_;
     std::filesystem::create_directories(finpath);
     return finpath;
+}
+
+void WebDashCore::SetCwd(std::optional<string> cwd) {
+    _preset_cwd = cwd;
 }
 
 std::optional<WebDashCore> WebDashCore::_config = nullopt;
