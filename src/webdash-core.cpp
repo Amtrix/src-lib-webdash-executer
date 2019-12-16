@@ -1,11 +1,10 @@
 #include "webdash-core.hpp"
 
-#include "myworldcpp/utility.hpp"
-#include "myworldcpp/logging.hpp"
-
 #include <nlohmann/json.hpp>
 #include <queue>
 #include <filesystem>
+#include <iostream>
+#include <fstream>
 using namespace std;
 using json = nlohmann::json;
 
@@ -84,13 +83,7 @@ vector<pair<string, string>> WebDashCore::GetAllDefinitions(bool surpress_loggin
 
 bool WebDashCore::_CalculateMyWorldRootDirectory() {
     // Get the working directory.
-    char current_path[2555];
-    if (!GetCurrentDir(current_path, sizeof(current_path))) {
-        return false;
-    }
-    current_path[sizeof(current_path) - 1] = '\0';
-
-    fs::path fs_path(current_path);
+    filesystem::path fs_path = filesystem::current_path();
     if (_preset_cwd.has_value())
         fs_path = _preset_cwd.value();
 

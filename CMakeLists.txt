@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-FIND_PACKAGE(Boost 1.65 COMPONENTS system filesystem REQUIRED)
+FIND_PACKAGE(Boost COMPONENTS system filesystem REQUIRED)
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 INCLUDE_DIRECTORIES( "$ENV{MYWORLD}/src/common" )
 INCLUDE_DIRECTORIES( "$ENV{MYWORLD}/src/bin/_webdash/common" )

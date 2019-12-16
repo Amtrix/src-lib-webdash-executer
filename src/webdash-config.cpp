@@ -2,8 +2,11 @@
 #include "webdash-types.hpp"
 #include "webdash-core.hpp"
 
+#include <iostream>
+#include <fstream>
 #include <optional>
 #include <nlohmann/json.hpp>
+using namespace std;
 
 WebDashConfig::WebDashConfig(string path) {
     _path = path;

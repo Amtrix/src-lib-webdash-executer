@@ -2,8 +2,6 @@
 
 #include <chrono>
 
-#include <myworldcpp/logging.hpp>
-#include <myworldcpp/utility.hpp>
 #include <nlohmann/json.hpp>
 
 #include "webdash-config-task.hpp"
