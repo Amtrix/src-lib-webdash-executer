@@ -35,7 +35,13 @@ namespace WebDash {
         { WebDash::LogType::ERR,    "error" },
         { WebDash::LogType::WARN,   "warn" },
         { WebDash::LogType::NOTIFY, "notify"}
-    };    
+    };
+
+    struct PullProject {
+        string source;
+        string destination;
+        string webdash_task;
+    };
 }
 
 using WriterType = std::function<void(WebDash::StoreWriteType, string)>;
@@ -79,6 +85,8 @@ class WebDashCore {
         vector<string> GetPathAdditions();
 
         vector<pair<string, string>> GetEnvAdditions();
+
+        vector<WebDash::PullProject> GetExternalProjects();
     
     private:
         WebDashCore();

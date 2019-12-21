@@ -270,7 +270,6 @@ void WebDashCore::SetCwd(std::optional<string> cwd) {
 namespace {
     void ParseJsonConcats(vector<pair<string, string>> defs, std::function<void(vector<string>, string)> func) {
         for (std::pair<string, string> entry : defs) {
-            cout << entry.first << " " << entry.second << endl;
             istringstream iss(entry.first);
 
             std::vector<std::string> tokens;
@@ -296,7 +295,7 @@ namespace {
 
     string NormalizeKeyw(string src) {
         vector<pair<string, string>> subs;
-        subs.push_back(make_pair("$.rootDir()", GetRepositoryRoot().value_or("unspecified")));
+        subs.push_back(make_pair("$.rootDir()", WebDashCore::Get().GetMyWorldRootDirectory()));
 
         // Substitue keywords.
         for (auto& [key, value] : subs) {
@@ -329,6 +328,35 @@ vector<pair<string, string>> WebDashCore::GetEnvAdditions() {
             ret.push_back(make_pair(tokens[2], NormalizeKeyw(val)));
         }
     });
+
+    return ret;
+}
+
+vector<WebDash::PullProject> WebDashCore::GetExternalProjects() {
+    unordered_map<string, WebDash::PullProject> projects;
+ 
+    auto defs = GetAllDefinitions(true);
+    ParseJsonConcats(defs, [&](vector<string> tokens, string val) {
+        // looking for $#.pull-projects.{source, destination, exec}
+
+        if (tokens.size() == 4 && tokens[1] == "pull-projects") {
+            const string pkey = tokens[2];
+            const string property = tokens[3];
+
+            if (property == "source")
+                projects[pkey].source = NormalizeKeyw(val);
+            if (property == "destination")
+                projects[pkey].destination = NormalizeKeyw(val);
+            if (property == "exec")
+                projects[pkey].webdash_task = NormalizeKeyw(val);
+            
+        }
+    });
+
+    vector<WebDash::PullProject> ret;
+    for (std::pair<string, WebDash::PullProject> element : projects) {
+        ret.push_back(element.second);
+    }
 
     return ret;
 }
