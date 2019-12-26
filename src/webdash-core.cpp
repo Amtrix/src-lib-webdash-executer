@@ -42,6 +42,14 @@ WebDashCore WebDashCore::Get() {
     return _config.value();
 }
 
+string BasicJsonToString(json val) {
+    if (val.is_string()) return val.get<std::string>();
+    if (val.is_boolean()) return val.get<bool>() ? "true" : "false";
+    if (val.is_number_integer()) return to_string(val.get<int>());
+    if (val.is_number()) return to_string(val.get<double>());
+    return "-";
+}
+
 vector<pair<string, string>> WebDashCore::GetAllDefinitions(bool surpress_logging) {
     vector<pair<string, string>> ret;
 
@@ -77,7 +85,7 @@ vector<pair<string, string>> WebDashCore::GetAllDefinitions(bool surpress_loggin
                 if (elem.is_object() || elem.is_array())
                     Q.push(make_pair(nkey, elem));
                 else
-                    ret.push_back(make_pair("$#" + nkey, elem.get<std::string>()));
+                    ret.push_back(make_pair("$#" + nkey, BasicJsonToString(elem)));
                 dx++;
             }
             continue;
@@ -89,7 +97,7 @@ vector<pair<string, string>> WebDashCore::GetAllDefinitions(bool surpress_loggin
             } else {
                 ret.push_back(make_pair(
                     "$#" + u.first + "." + key,
-                    value.get<std::string>()
+                    BasicJsonToString(value)
                 ));
             }
         }
@@ -349,7 +357,8 @@ vector<WebDash::PullProject> WebDashCore::GetExternalProjects() {
                 projects[pkey].destination = NormalizeKeyw(val);
             if (property == "exec")
                 projects[pkey].webdash_task = NormalizeKeyw(val);
-            
+            if (property == "register")
+                projects[pkey].do_register = val == "true";
         }
     });
 

@@ -41,6 +41,7 @@ namespace WebDash {
         string source;
         string destination;
         string webdash_task;
+        bool do_register;
     };
 }
 
