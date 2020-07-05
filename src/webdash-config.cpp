@@ -9,6 +9,7 @@
 using namespace std;
 
 WebDashConfig::WebDashConfig(string path) {
+    _is_initialized = false;
     _path = path;
 
     ifstream configStream;

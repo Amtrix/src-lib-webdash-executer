@@ -1,11 +1,14 @@
 #pragma once
 
+#include <webdash-log-code.hpp>
+
 #include <string>
 #include <optional>
 #include <vector>
 #include <functional>
 #include <filesystem>
 #include <map>
+
 using namespace std;
 
 // Must be specified by consuming libraries.
@@ -31,9 +34,9 @@ namespace WebDash {
     };
 
     inline const std::map<LogType, string> kTypeToString {
-        { WebDash::LogType::INFO,   "info" },
+        { WebDash::LogType::INFO,   "info"  },
         { WebDash::LogType::ERR,    "error" },
-        { WebDash::LogType::WARN,   "warn" },
+        { WebDash::LogType::WARN,   "warn"  },
         { WebDash::LogType::NOTIFY, "notify"}
     };
 
@@ -72,7 +75,10 @@ class WebDashCore {
         void LoadFromMyStorage(const string filename, WebDash::StoreReadType type, std::function<void(istream&)> fnc);
 
         // Logs into GetAndCreateLogDirectory()/app-temporary/logging/_WEBDASH_PROJECT_NAME_;
-        void Log(WebDash::LogType type, const std::string msg, const bool append_if_possible = false);
+        void Log(WebDash::LogType type,
+                 const std::string msg,
+                 const LogCode logcode = LogCode::E_UNKNOWN,
+                 const bool append_if_possible = false);
 
         void Notify(const std::string msg);
 
@@ -111,7 +117,5 @@ inline WebDashCore MyWorld() {
 }
 
 namespace myworld::dashboard {
-    inline void notify(const std::string msg) {
-        MyWorld().Log(WebDash::LogType::NOTIFY, msg, true);
-    }
+    void notify(const std::string msg);
 }

@@ -230,8 +230,14 @@ void WebDashCore::LoadFromMyStorage(const string filename, WebDash::StoreReadTyp
         return;
     }
 }
+static string StringifyLogCode(LogCode err) {
+    std::stringstream stream;
+    stream << std::hex << (0xE0000000 + static_cast<int>(err));
+    std::string result( stream.str() );
+    return result;
+}
 
-void WebDashCore::Log(WebDash::LogType type, const std::string msg, const bool append_if_possible) {
+void WebDashCore::Log(WebDash::LogType type, const std::string msg, const LogCode errcode, const bool append_if_possible) {
     // Get current time to add timestamp to the log entry.
     std::string curr_time = "";
     {
@@ -250,18 +256,18 @@ void WebDashCore::Log(WebDash::LogType type, const std::string msg, const bool a
     // OR file does not exist, then initialize empty file.
     if ((!_is_logtype_initialized[type] && !append_if_possible) || (!fexists)) {
         std::ofstream out(fpath.c_str());
-        out << curr_time << ": initialized this file." << std::endl;
+        out << StringifyLogCode(LogCode::E_INIT_LOG_FILE) << " " << curr_time << ": initialized this file." << std::endl;
         out.close();
         _is_logtype_initialized[type] = true;
     }
 
     // Write data.
     std::ofstream out(fpath.c_str(), std::ofstream::out | std::ofstream::app);
-    out << curr_time << ": " << msg << std::endl;
+    out << StringifyLogCode(errcode) << " " << curr_time << ": " << msg << std::endl;
 }
 
 void WebDashCore::Notify(const std::string msg) {
-    Log(WebDash::LogType::NOTIFY, msg, true);
+    Log(WebDash::LogType::NOTIFY, msg, LogCode::E_OK, true);
 }
 
 string WebDashCore::GetAndCreateLogDirectory() {
@@ -332,8 +338,14 @@ vector<pair<string, string>> WebDashCore::GetEnvAdditions() {
 
     auto defs = GetAllDefinitions(true);
     ParseJsonConcats(defs, [&](vector<string> tokens, string val) {
-        if (tokens.size() == 3 && tokens[1] == "env") {
-            ret.push_back(make_pair(tokens[2], NormalizeKeyw(val)));
+        if (tokens.size() >= 3 && tokens[1] == "env") {
+            string key = "";
+            for (size_t i = 2; i < tokens.size(); ++i) {
+                key += tokens[i];
+                if (i + 1 < tokens.size())
+                    key += ".";
+            }
+            ret.push_back(make_pair(key, NormalizeKeyw(val)));
         }
     });
 

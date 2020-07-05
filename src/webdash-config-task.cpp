@@ -203,7 +203,9 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string
     if (pid == 0) {
         if (_wdir.has_value()) {
             if (chdir(_wdir.value().c_str()) != 0) {
-                MyWorld().Log(WebDash::LogType::ERR, "Working directory not set to: " + _wdir.value());
+                perror ("WebDashConfigTask::Run!chdir");
+                MyWorld().Log(WebDash::LogType::ERR, "Failed to set cwd to: " + _wdir.value());
+                exit(1);
             }
             MyWorld().Log(WebDash::LogType::INFO, "Working directory set to: " + _wdir.value());
         }
@@ -218,7 +220,10 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string
         paramList[execParts.size()] = NULL;
 
         // child
-        cout << "Call `" << paramList[0];
+        cout << "-----------------" << endl;
+        cout << "TASKID: " << _taskid << endl;
+        cout << "CWD:    " << std::filesystem::current_path() << endl;
+        cout << "CALL:   `" << paramList[0];
         for (unsigned int i = 1; i < execParts.size(); ++i) {
             cout << " " << execParts[i];
         }
@@ -238,7 +243,7 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string
         }
 
         if (execvp(paramList[0], (char**)paramList) < 0) {
-            perror ("execvp");
+            perror ("WebDashConfigTask::Run!execvp");
         }
 
         exit(1);
