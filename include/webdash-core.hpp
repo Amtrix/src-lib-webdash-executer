@@ -80,7 +80,7 @@ class WebDashCore {
                  const LogCode logcode = LogCode::E_UNKNOWN,
                  const bool append_if_possible = false);
 
-        void Notify(const std::string msg);
+        void Notify(const std::string msg, const LogCode logcode = LogCode::N_UNKNOWN);
 
         // Return path of logging directroy and create if not exists:
         // GetAndCreateLogDirectory()/app-temporary/logging/_WEBDASH_PROJECT_NAME_
@@ -116,6 +116,13 @@ inline WebDashCore MyWorld() {
     return WebDashCore::Get();
 }
 
-namespace myworld::dashboard {
-    void notify(const std::string msg);
+//
+// Handy routines meant to provide shortcuts to MyWorld() calls. These should
+// reduce the direct usage of the WebDashCore() object across the codebase.
+//
+
+namespace myworld {
+    inline void notify(const std::string msg, const LogCode logcode = LogCode::N_UNKNOWN) {
+        MyWorld().Log(WebDash::LogType::NOTIFY, msg, logcode, true);
+    }
 }

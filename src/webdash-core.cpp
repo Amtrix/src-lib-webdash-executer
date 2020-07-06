@@ -232,7 +232,7 @@ void WebDashCore::LoadFromMyStorage(const string filename, WebDash::StoreReadTyp
 }
 static string StringifyLogCode(LogCode err) {
     std::stringstream stream;
-    stream << std::hex << (0xE0000000 + static_cast<int>(err));
+    stream << std::hex << (static_cast<int>(err));
     std::string result( stream.str() );
     return result;
 }
@@ -256,7 +256,7 @@ void WebDashCore::Log(WebDash::LogType type, const std::string msg, const LogCod
     // OR file does not exist, then initialize empty file.
     if ((!_is_logtype_initialized[type] && !append_if_possible) || (!fexists)) {
         std::ofstream out(fpath.c_str());
-        out << StringifyLogCode(LogCode::E_INIT_LOG_FILE) << " " << curr_time << ": initialized this file." << std::endl;
+        out << StringifyLogCode(LogCode::N_INIT_LOG_FILE) << " " << curr_time << ": initialized this file." << std::endl;
         out.close();
         _is_logtype_initialized[type] = true;
     }
@@ -266,8 +266,8 @@ void WebDashCore::Log(WebDash::LogType type, const std::string msg, const LogCod
     out << StringifyLogCode(errcode) << " " << curr_time << ": " << msg << std::endl;
 }
 
-void WebDashCore::Notify(const std::string msg) {
-    Log(WebDash::LogType::NOTIFY, msg, LogCode::E_OK, true);
+void WebDashCore::Notify(const std::string msg, const LogCode logcode) {
+    Log(WebDash::LogType::NOTIFY, msg, logcode, true);
 }
 
 string WebDashCore::GetAndCreateLogDirectory() {

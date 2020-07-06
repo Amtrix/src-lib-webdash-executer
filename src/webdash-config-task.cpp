@@ -298,7 +298,7 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config) {
     _last_exec_time = std::chrono::high_resolution_clock::now();
 
     if (_notify_dashboard) {
-        myworld::dashboard::notify(_taskid);
+        myworld::notify(_taskid);
     }
 
     for (int i = 0; i < (int)_dependencies.size(); ++i) {
