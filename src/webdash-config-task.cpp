@@ -32,7 +32,7 @@ namespace {
 }
 
 WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json task_config) {
-    MyWorld().Log(WebDash::LogType::INFO, "Loading Task: " + taskid);
+    MyWorld().Log(WebDash::LogType::DEBUG, "Loading Task: " + taskid);
 
     this->_config_path = config_path;
     this->_taskid = taskid;
@@ -181,8 +181,8 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string
     webdash::RunReturn retval;
     _times_called++;
 
-    MyWorld().Log(WebDash::LogType::INFO, "Executing: " + this->_taskid);
-    MyWorld().Log(WebDash::LogType::INFO, "    => " + action);
+    MyWorld().Log(WebDash::LogType::DEBUG, "Executing: " + this->_taskid);
+    MyWorld().Log(WebDash::LogType::DEBUG, "    => " + action);
 
     cout << "Forking... " << endl;
 
@@ -207,7 +207,7 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string
                 MyWorld().Log(WebDash::LogType::ERR, "Failed to set cwd to: " + _wdir.value());
                 exit(1);
             }
-            MyWorld().Log(WebDash::LogType::INFO, "Working directory set to: " + _wdir.value());
+            MyWorld().Log(WebDash::LogType::DEBUG, "Working directory set to: " + _wdir.value());
         }
 
         std::istringstream iss(action.c_str());
@@ -285,9 +285,9 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config) {
 
     if (!ShouldExecuteTimewise(config)) {
         if (_print_skip_has_happened == false) {
-            MyWorld().Log(WebDash::LogType::INFO, "Skipping: " + this->_taskid);
-            MyWorld().Log(WebDash::LogType::INFO, "Was executed XYZ milliseconds ago.");
-            MyWorld().Log(WebDash::LogType::INFO, "....ommitting further similar reports until next execution passed.");
+            MyWorld().Log(WebDash::LogType::DEBUG, "Skipping: " + this->_taskid);
+            MyWorld().Log(WebDash::LogType::DEBUG, "Was executed XYZ milliseconds ago.");
+            MyWorld().Log(WebDash::LogType::DEBUG, "....ommitting further similar reports until next execution passed.");
             _print_skip_has_happened = true;
         }
 

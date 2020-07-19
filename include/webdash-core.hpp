@@ -30,14 +30,16 @@ namespace WebDash {
         INFO = 1,
         ERR = 2,
         WARN = 3,
-        NOTIFY = 4
+        NOTIFY = 4,
+        DEBUG = 5
     };
 
     inline const std::map<LogType, string> kTypeToString {
         { WebDash::LogType::INFO,   "info"  },
         { WebDash::LogType::ERR,    "error" },
         { WebDash::LogType::WARN,   "warn"  },
-        { WebDash::LogType::NOTIFY, "notify"}
+        { WebDash::LogType::NOTIFY, "notify"},
+        { WebDash::LogType::DEBUG, "debug"}
     };
 
     struct PullProject {

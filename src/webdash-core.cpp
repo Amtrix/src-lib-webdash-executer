@@ -16,7 +16,7 @@ WebDashCore::WebDashCore() {
     }
     _InitializeLoggingFiles();
 
-    Log(WebDash::LogType::INFO, "Determined WebDash root path: " + _myworld_root_path);
+    Log(WebDash::LogType::DEBUG, "Determined WebDash root path: " + _myworld_root_path);
 }
 
 void WebDashCore::Create(std::optional<string> cwd) {
@@ -158,6 +158,7 @@ void WebDashCore::_InitializeLoggingFiles() {
     Log(WebDash::LogType::ERR, "");
     Log(WebDash::LogType::INFO, "");
     Log(WebDash::LogType::WARN, "");
+    Log(WebDash::LogType::DEBUG, "");
 }
 
 string WebDashCore::GetMyWorldRootDirectory() {
@@ -168,7 +169,7 @@ std::filesystem::path WebDashCore::GetPersistenteStoragePath() {
     filesystem::path ret = GetMyWorldRootDirectory();
     ret += string("/app-persistent/data/") + _WEBDASH_PROJECT_NAME_;
 
-    Log(WebDash::LogType::INFO, "Create recursive: " + ret.string());
+    Log(WebDash::LogType::DEBUG, "Create recursive: " + ret.string());
 
     std::filesystem::create_directories(ret);
     

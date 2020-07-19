@@ -14,7 +14,7 @@ WebDashConfig::WebDashConfig(string path) {
 
     ifstream configStream;
     try {
-        MyWorld().Log(WebDash::LogType::INFO, "Opening webdash config file: " + _path);
+        MyWorld().Log(WebDash::LogType::DEBUG, "Opening webdash config file: " + _path);
         configStream.open(_path.c_str(), ifstream::in);
     } catch (...) {
         MyWorld().Log(WebDash::LogType::ERR, "Issues opening to config file. Something wrong with path?");
@@ -35,17 +35,17 @@ WebDashConfig::WebDashConfig(string path) {
         MyWorld().Log(WebDash::LogType::ERR, "No 'commands' given.");
     }
 
-    MyWorld().Log(WebDash::LogType::INFO, "Commands loaded. Available count: " + to_string(cmds.size()));
+    MyWorld().Log(WebDash::LogType::DEBUG, "Commands loaded. Available count: " + to_string(cmds.size()));
     
     int cmd_dx = 0;
     for (auto cmd : cmds) {
-        MyWorld().Log(WebDash::LogType::INFO, to_string(cmd_dx) + "th command: " + cmd.dump());
+        MyWorld().Log(WebDash::LogType::DEBUG, to_string(cmd_dx) + "th command: " + cmd.dump());
         
         try {
             const string cmdid = path + "#" + cmd["name"].get<std::string>();
             tasks.emplace_back(path, cmdid, cmd);
         } catch (...) {
-            MyWorld().Log(WebDash::LogType::INFO, "Failed getting name from " + to_string(cmd_dx) + "th command.");
+            MyWorld().Log(WebDash::LogType::DEBUG, "Failed getting name from " + to_string(cmd_dx) + "th command.");
         }
 
         cmd_dx++;
