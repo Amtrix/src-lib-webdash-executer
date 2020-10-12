@@ -1,5 +1,7 @@
+#include "webdash-utils.hpp"
 #include "webdash-config-task.hpp"
 #include "webdash-core.hpp"
+#include "webdash-config.hpp"
 
 #include <cstdio>
 #include <unistd.h>
@@ -11,38 +13,25 @@
 #include <iostream>
 using namespace std;
 
-namespace {
-    inline string GetDirectoryOnlyOf(string full_fulename) {
-        size_t pos = full_fulename.find_last_of("\\/");
-        return (std::string::npos == pos) ? "" : full_fulename.substr(0, pos);
-    }
-}
 
-
-namespace {
-    string SubstituteKeywords(string src, string keyword, string replace_with) {
-        size_t pos;
-
-        while ((pos = src.find(keyword)) != string::npos) {
-            src.replace(pos, keyword.size(), replace_with);
-        }
-
-        return src;
-    }
-}
-
-WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json task_config) {
+WebDashConfigTask::WebDashConfigTask(WebDashConfig* config, string taskid, json task_config) {
     MyWorld().Log(WebDash::LogType::DEBUG, "Loading Task: " + taskid);
 
-    this->_config_path = config_path;
+    this->_config_path = config->GetPath();
     this->_taskid = taskid;
+    this->_is_valid = true;
+
+    //
+    // Parse the webdash.config.json file.
+    //
 
     try {
         const string name = task_config["name"].get<std::string>();
         this->_name = name;
     } catch (...) {
-        MyWorld().Log(WebDash::LogType::ERR, "T| " + taskid + ": no name.");
+        MyWorld().Log(WebDash::LogType::ERR, "T| " + taskid + ": field missing [name].");
         _is_valid = false;
+        return;
     }
 
     {
@@ -65,7 +54,7 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
 
         if (!has_action) {
             _is_valid = false;
-            MyWorld().Log(WebDash::LogType::ERR, "T| " + taskid + ": no actions.");
+            MyWorld().Log(WebDash::LogType::ERR, "T| " + taskid + ": field missing [actions].");
         }
     }
 
@@ -75,7 +64,7 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
         for (auto dependency : dependencies) 
             this->_dependencies.push_back(dependency.get<std::string>());
     } catch (...) {
-        MyWorld().Log(WebDash::LogType::WARN, "T| " + taskid + ": no dependencies.");
+        MyWorld().Log(WebDash::LogType::WARN, "T| " + taskid + ": field missing [dependencies].");
     }
 
     
@@ -83,14 +72,14 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
         const string frequency = task_config["frequency"].get<std::string>();
         this->_frequency = frequency;
     } catch (...) {
-        MyWorld().Log(WebDash::LogType::WARN, "T| " + taskid + ": no frequency.");
+        MyWorld().Log(WebDash::LogType::WARN, "T| " + taskid + ": field missing [frequency].");
     }
 
     try {
         const string when = task_config["when"].get<std::string>();
         this->_when_to_execute = when;
     } catch (...) {
-        MyWorld().Log(WebDash::LogType::WARN, "T| " + taskid + ": no 'when'.");
+        MyWorld().Log(WebDash::LogType::WARN, "T| " + taskid + ": field missing [when] (remove this?).");
     }
 
     try {
@@ -107,24 +96,23 @@ WebDashConfigTask::WebDashConfigTask(string config_path, string taskid, json tas
         MyWorld().Log(WebDash::LogType::WARN, "T| " + taskid + ": dashboard notification not specified.");
     }
 
-    auto defs = WebDashCore::Get().GetAllDefinitions();
-    defs.push_back(make_pair("$.thisDir()", GetDirectoryOnlyOf(_config_path)));
+    //
+    // Apply all keyword substitutions.
+    //
 
-    // Substitue keywords.
-    for (auto& [key, value] : defs) {
-        _name = SubstituteKeywords(_name, key, value);
+    auto defs = config->GetAllDefinitions();
+    _name = ApplySubstitutions(_name, defs);
 
-        for (auto& action : _actions) {
-            action = SubstituteKeywords(action, key, value);
-        }
+    for (auto& action : _actions) {
+        action = ApplySubstitutions(action, defs);
+    }
 
-        for (auto& dependency : _dependencies) {
-            dependency = SubstituteKeywords(dependency, key, value);
-        }
+    for (auto& dependency : _dependencies) {
+        dependency = ApplySubstitutions(dependency, defs);
+    }
 
-        if (_wdir.has_value()) {
-            _wdir = SubstituteKeywords(_wdir.value(), key, value);
-        }
+    if (_wdir.has_value()) {
+        _wdir = ApplySubstitutions(_wdir.value(), defs);
     }
 }
 
@@ -146,6 +134,16 @@ bool WebDashConfigTask::ShouldExecuteTimewise(webdash::RunConfig config) {
     bool enough_time_passed = true;
     if (_frequency.has_value()) {
         string freqv = _frequency.value();
+
+        //
+        // Malformed frequency field?
+        //
+
+        if (freqv != "daily" && !is_number(freqv)) {
+            MyWorld().Log(WebDash::LogType::INFO, "Malformed frequency field. Skipped.");
+            enough_time_passed = false;
+        }
+
         if (diff_h < 24 && freqv == "daily") {
             enough_time_passed = false;
         } else if (diff_ms && is_number(freqv) && (diff_ms < stod(freqv))) {

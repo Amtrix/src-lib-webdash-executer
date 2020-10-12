@@ -39,7 +39,7 @@ namespace WebDash {
         { WebDash::LogType::ERR,    "error" },
         { WebDash::LogType::WARN,   "warn"  },
         { WebDash::LogType::NOTIFY, "notify"},
-        { WebDash::LogType::DEBUG, "debug"}
+        { WebDash::LogType::DEBUG,  "debug"}
     };
 
     struct PullProject {
@@ -53,16 +53,32 @@ namespace WebDash {
 using WriterType = std::function<void(WebDash::StoreWriteType, string)>;
 
 class WebDashCore {
+    private:
+        struct PrivateCtorClass {};
+
     public:
+        // Constructor with a dummy parameter. The parameter ensures that no one but WebDashCore can use it.
+        // The reason this was implemented like this instead of moving constructor to private section is due to
+        // it's requirement for the std::optional::emplace function.
+        WebDashCore(PrivateCtorClass private_ctor);
+        // Delete copy constructor.
+        WebDashCore(const WebDashCore&) = delete;
+
         // Returns the singleton of type WebDashCore.
-        static WebDashCore Get();
+        static WebDashCore& Get();
 
         // Creates the singleton.
         static void Create(std::optional<string> cwd = nullopt);
 
+        vector<pair<string, string>> GetCoreDefinitions() const;
+
         // Returns all definitions from within GetMyWorldRootDirectory()/definitions.json
-        // Format: ($#.A.B.C.D.E, value)
-        vector<pair<string, string>> GetAllDefinitions(bool surpress_logging = false);
+        // Format of each element in result vector: {.first = $#.A.B.C.D.E, .second = value)
+        //
+        // Arguments:
+        //     file_must_exist - Return empty vector if file does not exist in current root or is not JSON.
+        //         This is useful to probe the current root directory.
+        vector<pair<string, string>> GetCustomDefinitions(bool file_must_exist = true);
 
         // Returns the webdash root directory.
         string GetMyWorldRootDirectory();
@@ -84,7 +100,7 @@ class WebDashCore {
 
         void Notify(const std::string msg, const LogCode logcode = LogCode::N_UNKNOWN);
 
-        // Return path of logging directroy and create if not exists:
+        // Return path of logging directory and create if not exists:
         // GetAndCreateLogDirectory()/app-temporary/logging/_WEBDASH_PROJECT_NAME_
         string GetAndCreateLogDirectory();
 
@@ -98,8 +114,7 @@ class WebDashCore {
         vector<WebDash::PullProject> GetExternalProjects();
     
     private:
-        WebDashCore();
-
+    
         bool _CalculateMyWorldRootDirectory();
 
         void _InitializeLoggingFiles();
@@ -112,9 +127,11 @@ class WebDashCore {
         string _myworld_root_path;
 
         std::optional<string> _preset_cwd;
+
+        static bool _creation_is_active;
 };
 
-inline WebDashCore MyWorld() {
+inline WebDashCore& MyWorld() {
     return WebDashCore::Get();
 }
 

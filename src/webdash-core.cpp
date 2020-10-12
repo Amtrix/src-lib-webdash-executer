@@ -1,3 +1,4 @@
+#include "webdash-utils.hpp"
 #include "webdash-core.hpp"
 
 #include <nlohmann/json.hpp>
@@ -9,7 +10,33 @@
 using namespace std;
 using json = nlohmann::json;
 
-WebDashCore::WebDashCore() {
+
+namespace {
+    void ParseJsonConcats(vector<pair<string, string>> defs, std::function<void(vector<string>, string)> func) {
+        for (std::pair<string, string> entry : defs) {
+            istringstream iss(entry.first);
+
+            std::vector<std::string> tokens;
+            std::string token;
+            while (std::getline(iss, token, '.')) {
+                if (!token.empty())
+                    tokens.push_back(token);
+            }
+
+            func(tokens, entry.second);
+        }
+    }
+
+    bool MustIgnoreKeyPattern(string key) {
+        if (key.size() == 0) return true;
+        if (key[0] == '.') return true; // Ignore ".string" patterns.
+        return false;
+    }
+}
+
+WebDashCore::WebDashCore(PrivateCtorClass private_ctor) {
+    /* unused */ (void) private_ctor;
+
     if (!_CalculateMyWorldRootDirectory()) {
         cout << "Could not find WebDash root directory." << endl;
         return;
@@ -19,24 +46,32 @@ WebDashCore::WebDashCore() {
     Log(WebDash::LogType::DEBUG, "Determined WebDash root path: " + _myworld_root_path);
 }
 
-void WebDashCore::Create(std::optional<string> cwd) {
+/* static */ void WebDashCore::Create(std::optional<string> cwd) {
     if (_config.has_value()) {
         _config->Log(WebDash::LogType::WARN, "Create has been called before.");
         return;
     }
-
-    _config = WebDashCore();
+    
+    _config.emplace(PrivateCtorClass{});
     _config->SetCwd(cwd);
 }
 
-WebDashCore WebDashCore::Get() {
+/* static */ WebDashCore& WebDashCore::Get() {
+    if (_creation_is_active) {
+        cout << "DO NOT USE WebDashCore::Get() within the implementation file!" << endl;
+        _config->Log(WebDash::LogType::ERR, "DO NOT USE WebDashCore::Get() within the implementation file");
+        throw std::logic_error("");
+    }
+
     if (!_config.has_value()) {
+        _creation_is_active = true;
         Create();
+        _creation_is_active = false;
 
         if (_config.has_value())
-            _config->Log(WebDash::LogType::WARN, "Default creation done for WebDashCore");
+            _config->Log(WebDash::LogType::INFO, "Default creation done for WebDashCore");
         else
-            cout << "Default creation for WebDashCore has failed" << endl;
+            _config->Log(WebDash::LogType::ERR, "Default creation for WebDashCore has failed");
     }
 
     return _config.value();
@@ -50,16 +85,26 @@ string BasicJsonToString(json val) {
     return "-";
 }
 
-vector<pair<string, string>> WebDashCore::GetAllDefinitions(bool surpress_logging) {
+vector<pair<string, string>> WebDashCore::GetCoreDefinitions() const {
+    vector<pair<string,string>> ret;
+    ret.push_back(make_pair("$.rootDir()", _myworld_root_path));
+    return ret;
+}
+
+vector<pair<string, string>> WebDashCore::GetCustomDefinitions(bool file_must_exist) {
     vector<pair<string, string>> ret;
 
     const string path = _myworld_root_path + "/definitions.json";
+
+    //
+    // Check if the above definitions.json file exists. Return if not. Treat as error iff file_must_exist is TRUE.
+    //
 
     ifstream configStream;
     try {
         configStream.open(path.c_str(), ifstream::in);
     } catch (...) {
-        if (!surpress_logging) Log(WebDash::LogType::ERR, "Issues opening the definitions file.");
+        if (file_must_exist) Log(WebDash::LogType::ERR, "Issues opening the definitions file.");
         return ret;
     }
 
@@ -67,12 +112,18 @@ vector<pair<string, string>> WebDashCore::GetAllDefinitions(bool surpress_loggin
     try {
         configStream >> _defs;
     } catch (...) {
-        if (!surpress_logging) Log(WebDash::LogType::ERR, "Was unable to parse the config '" + path + "' file. Format error?");
+        if (file_must_exist) Log(WebDash::LogType::ERR, "Was unable to parse the config '" + path + "' file. Format error?");
         return ret;
     }
 
+    //
+    // Parse the whole /definitions.json file with a BFS.
+    //
+
     queue<pair<string, json>> Q;
     Q.push(make_pair("", _defs));
+
+    auto core_subs = GetCoreDefinitions();
 
     while (!Q.empty()) {
         pair<string, json> u = Q.front();
@@ -82,22 +133,28 @@ vector<pair<string, string>> WebDashCore::GetAllDefinitions(bool surpress_loggin
             int dx = 0;
             for (auto elem : u.second) {
                 const string nkey = u.first + ".[" + to_string(dx) + "]";
-                if (elem.is_object() || elem.is_array())
+                if (elem.is_object() || elem.is_array()) {
                     Q.push(make_pair(nkey, elem));
-                else
-                    ret.push_back(make_pair("$#" + nkey, BasicJsonToString(elem)));
+                } else {
+                    ret.push_back(make_pair("$#" + nkey,
+                        ApplySubstitutions(BasicJsonToString(elem), core_subs)
+                    ));
+                }
                 dx++;
             }
             continue;
         }
 
         for (auto& [key, value] : u.second.items()) {
+            if (MustIgnoreKeyPattern(key))
+                continue;
+
             if (value.is_object() || value.is_array()) {
                 Q.push(make_pair(u.first + "." + key, value));
             } else {
                 ret.push_back(make_pair(
                     "$#" + u.first + "." + key,
-                    BasicJsonToString(value)
+                    ApplySubstitutions(BasicJsonToString(value), core_subs)
                 ));
             }
         }
@@ -131,10 +188,12 @@ bool WebDashCore::_CalculateMyWorldRootDirectory() {
     while (true) {
         _myworld_root_path = fs_path.string();
 
-        auto defs = GetAllDefinitions(true);
+        auto defs = GetCustomDefinitions(false);
         for (auto def : defs) {
-            if (def.first == "$#.myworld.rootDir" && def.second == "this")
+            // Does ${_myworld_root_path}/definitions.json file define {key='myworld.rootDir',val='this')?
+            if (def.first == "$#.myworld.rootDir" && def.second == "this") {
                 return true;
+            }
         }
 
         if (fs_path == fs_path.root_path())
@@ -282,52 +341,13 @@ void WebDashCore::SetCwd(std::optional<string> cwd) {
     _preset_cwd = cwd;
 }
 
-namespace {
-    void ParseJsonConcats(vector<pair<string, string>> defs, std::function<void(vector<string>, string)> func) {
-        for (std::pair<string, string> entry : defs) {
-            istringstream iss(entry.first);
-
-            std::vector<std::string> tokens;
-            std::string token;
-            while (std::getline(iss, token, '.')) {
-                if (!token.empty())
-                    tokens.push_back(token);
-            }
-
-            func(tokens, entry.second);
-        }
-    }
-
-    string SubstituteKeywords(string src, string keyword, string replace_with) {
-        size_t pos;
-
-        while ((pos = src.find(keyword)) != string::npos) {
-            src.replace(pos, keyword.size(), replace_with);
-        }
-
-        return src;
-    }
-
-    string NormalizeKeyw(string src) {
-        vector<pair<string, string>> subs;
-        subs.push_back(make_pair("$.rootDir()", WebDashCore::Get().GetMyWorldRootDirectory()));
-
-        // Substitue keywords.
-        for (auto& [key, value] : subs) {
-            src = SubstituteKeywords(src, key, value);
-        }
-
-        return src;
-    }
-}
-
 vector<string> WebDashCore::GetPathAdditions() {
     vector<string> ret;
 
-    auto defs = GetAllDefinitions(true);
+    auto defs = GetCustomDefinitions(true);
     ParseJsonConcats(defs, [&](vector<string> tokens, string val) {
         if (tokens.size() == 3 && tokens[1] == "path-add") {
-            ret.push_back(NormalizeKeyw(val));
+            val = ApplySubstitutions(val, GetCoreDefinitions());
         }
     });
 
@@ -337,7 +357,7 @@ vector<string> WebDashCore::GetPathAdditions() {
 vector<pair<string, string>> WebDashCore::GetEnvAdditions() {
     vector<pair<string, string>> ret;
 
-    auto defs = GetAllDefinitions(true);
+    auto defs = GetCustomDefinitions(true);
     ParseJsonConcats(defs, [&](vector<string> tokens, string val) {
         if (tokens.size() >= 3 && tokens[1] == "env") {
             string key = "";
@@ -346,7 +366,7 @@ vector<pair<string, string>> WebDashCore::GetEnvAdditions() {
                 if (i + 1 < tokens.size())
                     key += ".";
             }
-            ret.push_back(make_pair(key, NormalizeKeyw(val)));
+            ret.push_back(make_pair(key, ApplySubstitutions(val, GetCoreDefinitions())));
         }
     });
 
@@ -356,7 +376,7 @@ vector<pair<string, string>> WebDashCore::GetEnvAdditions() {
 vector<WebDash::PullProject> WebDashCore::GetExternalProjects() {
     unordered_map<string, WebDash::PullProject> projects;
  
-    auto defs = GetAllDefinitions(true);
+    auto defs = GetCustomDefinitions(true);
     ParseJsonConcats(defs, [&](vector<string> tokens, string val) {
         // looking for $#.pull-projects.{source, destination, exec}
 
@@ -365,11 +385,11 @@ vector<WebDash::PullProject> WebDashCore::GetExternalProjects() {
             const string property = tokens[3];
 
             if (property == "source")
-                projects[pkey].source = NormalizeKeyw(val);
+                projects[pkey].source = ApplySubstitutions(val, GetCoreDefinitions());
             if (property == "destination")
-                projects[pkey].destination = NormalizeKeyw(val);
+                projects[pkey].destination = ApplySubstitutions(val, GetCoreDefinitions());
             if (property == "exec")
-                projects[pkey].webdash_task = NormalizeKeyw(val);
+                projects[pkey].webdash_task = ApplySubstitutions(val, GetCoreDefinitions());
             if (property == "register")
                 projects[pkey].do_register = val == "true";
         }
@@ -384,3 +404,4 @@ vector<WebDash::PullProject> WebDashCore::GetExternalProjects() {
 }
 
 std::optional<WebDashCore> WebDashCore::_config = nullopt;
+bool WebDashCore::_creation_is_active = false;

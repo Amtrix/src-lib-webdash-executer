@@ -21,6 +21,7 @@ list(APPEND ALL_CPP_FILES
     "src/webdash-config.cpp"
     "src/webdash-config-task.cpp"
     "src/webdash-core.cpp"
+    "src/webdash-utils.cpp"
 )
 
 ADD_LIBRARY(webdash-executer STATIC ${ALL_CPP_FILES} )

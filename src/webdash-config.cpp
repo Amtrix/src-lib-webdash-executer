@@ -1,3 +1,4 @@
+#include "webdash-utils.hpp"
 #include "webdash-config.hpp"
 #include "webdash-types.hpp"
 #include "webdash-core.hpp"
@@ -8,24 +9,34 @@
 #include <nlohmann/json.hpp>
 using namespace std;
 
+
 WebDashConfig::WebDashConfig(string path) {
-    _is_initialized = false;
     _path = path;
 
+    _is_loaded = false;
+
+    if (Load()) {
+        _is_loaded = true;
+    }
+}
+
+bool WebDashConfig::Load() {
+    tasks.clear();
+    
     ifstream configStream;
     try {
         MyWorld().Log(WebDash::LogType::DEBUG, "Opening webdash config file: " + _path);
         configStream.open(_path.c_str(), ifstream::in);
     } catch (...) {
         MyWorld().Log(WebDash::LogType::ERR, "Issues opening to config file. Something wrong with path?");
-        return;
+        return false;
     }
     
     try {
         configStream >> _config;
     } catch (...) {
-        MyWorld().Log(WebDash::LogType::ERR, "Was unable to parse the config '" + path + "' file. Format error?");
-        return;
+        MyWorld().Log(WebDash::LogType::ERR, "Was unable to parse the config '" + _path + "' file. Format error?");
+        return false;
     }
 
     json cmds;
@@ -33,6 +44,7 @@ WebDashConfig::WebDashConfig(string path) {
         cmds = _config["commands"];
     } catch (...) {
         MyWorld().Log(WebDash::LogType::ERR, "No 'commands' given.");
+        return false;
     }
 
     MyWorld().Log(WebDash::LogType::DEBUG, "Commands loaded. Available count: " + to_string(cmds.size()));
@@ -42,8 +54,8 @@ WebDashConfig::WebDashConfig(string path) {
         MyWorld().Log(WebDash::LogType::DEBUG, to_string(cmd_dx) + "th command: " + cmd.dump());
         
         try {
-            const string cmdid = path + "#" + cmd["name"].get<std::string>();
-            tasks.emplace_back(path, cmdid, cmd);
+            const string cmdid = _path + "#" + cmd["name"].get<std::string>();
+            tasks.emplace_back(this, cmdid, cmd);
         } catch (...) {
             MyWorld().Log(WebDash::LogType::DEBUG, "Failed getting name from " + to_string(cmd_dx) + "th command.");
         }
@@ -51,11 +63,33 @@ WebDashConfig::WebDashConfig(string path) {
         cmd_dx++;
     }
 
-    _is_initialized = true;
+    return true;
 }
 
 string WebDashConfig::GetPath() const {
     return _path;
+}
+
+vector<pair<string, string>> WebDashConfig::GetAllDefinitions() const {
+    // $myworld/definitions.json
+    vector<pair<string, string>> ret = WebDashCore::Get().GetCustomDefinitions();
+
+    // webdash core
+    vector<pair<string, string>> core = WebDashCore::Get().GetCoreDefinitions();
+    ret.insert(ret.end(), core.begin(), core.end());
+
+    // config-specific (a WebDashConfig object required)
+    ret.push_back(make_pair("$.thisDir()", GetDirectoryOf(_path)));
+
+    return ret;
+}
+
+void WebDashConfig::Reload() {
+    _is_loaded = false;
+    
+    if (Load()) {
+        _is_loaded = true;
+    }
 }
 
 void WebDashConfig::Serialize(WriterType writer) {
@@ -104,7 +138,7 @@ std::vector<webdash::RunReturn> WebDashConfig::Run(const string cmdName, webdash
             cout << path << " " << path.is_absolute() << endl;
             WebDashConfig other(((path.is_absolute() == false) ? WebDashCore::Get().GetMyWorldRootDirectory() + "/" : "") + configpath);
 
-            if (!other.IsInitialized())
+            if (!other.IsLoaded())
                 return nullopt;
 
             return other.GetTask(real_cmd_name);

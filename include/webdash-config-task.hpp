@@ -7,15 +7,19 @@
 #include "webdash-config-task.hpp"
 #include "webdash-types.hpp"
 
+class WebDashConfig;
+
 using json = nlohmann::json;
 using namespace std::chrono;
 
 /**
+ * 
  * Representative of a single webdash task that's from within a config file.
+ *
  * */
 class WebDashConfigTask {
     public:
-        WebDashConfigTask(string, string, json);
+        WebDashConfigTask(WebDashConfig*, string, json);
 
         bool ShouldExecuteTimewise(webdash::RunConfig config);
 
@@ -45,7 +49,8 @@ class WebDashConfigTask {
         // skip such further logging.
         bool _print_skip_has_happened = false;
 
-        // The task might be invalid due to some parameters wrongly set in the JSON, for example.
+        // The task might be invalid due to some parameters wrongly set in the JSON.
+        // Not restricted to this example only.
         bool _is_valid = true;
 
         bool _notify_dashboard = false;
