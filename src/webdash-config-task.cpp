@@ -259,6 +259,7 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string
                         continue;
                     } else {
                         perror("read");
+                        close(filedes[0]);
                         exit(1);
                     }
                 } else if ( len == 0 ) {
@@ -269,6 +270,8 @@ webdash::RunReturn WebDashConfigTask::Run(webdash::RunConfig config, std::string
                 }
             }
         }
+
+        close(filedes[0]);
     }
 
     int status;
